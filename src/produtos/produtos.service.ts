@@ -1,26 +1,55 @@
 import { Injectable } from '@nestjs/common';
 import { CreateProdutoDto } from './dto/create-produto.dto';
 import { UpdateProdutoDto } from './dto/update-produto.dto';
+import { Produto } from './entities/produto.entity';
 
 @Injectable()
 export class ProdutosService {
+  private produtos: Produto[] = [];
+
   create(createProdutoDto: CreateProdutoDto) {
-    return 'This action adds a new produto';
+    const novoProduto: Produto = {
+      id: Date.now(),
+      ...createProdutoDto,
+    };
+
+    this.produtos.push(novoProduto);
+
+    return novoProduto;
   }
 
   findAll() {
-    return `This action returns all produtos`;
+    return this.produtos;
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} produto`;
+    return this.produtos.find((produto) => produto.id === id);
   }
 
   update(id: number, updateProdutoDto: UpdateProdutoDto) {
-    return `This action updates a #${id} produto`;
+    const index = this.produtos.findIndex((produto) => produto.id === id);
+
+    if (index === -1) {
+      return null;
+    }
+
+    this.produtos[index] = {
+      ...this.produtos[index],
+      ...updateProdutoDto,
+    };
+
+    return this.produtos[index];
   }
 
   remove(id: number) {
-    return `This action removes a #${id} produto`;
+    const produtoExiste = this.produtos.some((produto) => produto.id === id);
+
+    if (!produtoExiste) {
+      return null;
+    }
+
+    this.produtos = this.produtos.filter((produto) => produto.id !== id);
+
+    return { removido: true };
   }
 }
