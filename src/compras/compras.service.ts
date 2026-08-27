@@ -1,55 +1,54 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCompraDto } from './dto/create-compra.dto';
 import { UpdateCompraDto } from './dto/update-compra.dto';
-import { Compra } from './entities/compra.entity';
 
 @Injectable()
 export class ComprasService {
-  private compras: Compra[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(createCompraDto: CreateCompraDto) {
-    const novaCompra: Compra = {
-      id: Date.now(),
-      ...createCompraDto,
-    };
-
-    this.compras.push(novaCompra);
-
-    return novaCompra;
+  async create(createCompraDto: CreateCompraDto) {
+    return this.prisma.compra.create({
+      data: createCompraDto,
+    });
   }
 
-  findAll() {
-    return this.compras;
+  async findAll() {
+    return this.prisma.compra.findMany();
   }
 
-  findOne(id: number) {
-    return this.compras.find((compra) => compra.id === id);
-  }
+  async findOne(id: number) {
+    const compra = await this.prisma.compra.findUnique({
+      where: {
+        id,
+      },
+    });
 
-  update(id: number, updateCompraDto: UpdateCompraDto) {
-    const index = this.compras.findIndex((compra) => compra.id === id);
-
-    if (index === -1) {
-      return null;
+    if (!compra) {
+      throw new NotFoundException(`Compra ${id} não encontrada`);
     }
 
-    this.compras[index] = {
-      ...this.compras[index],
-      ...updateCompraDto,
-    };
-
-    return this.compras[index];
+    return compra;
   }
 
-  remove(id: number) {
-    const compraExiste = this.compras.some((compra) => compra.id === id);
+  async update(id: number, updateCompraDto: UpdateCompraDto) {
+    await this.findOne(id);
 
-    if (!compraExiste) {
-      return null;
-    }
+    return this.prisma.compra.update({
+      where: {
+        id,
+      },
+      data: updateCompraDto,
+    });
+  }
 
-    this.compras = this.compras.filter((compra) => compra.id !== id);
+  async remove(id: number) {
+    await this.findOne(id);
 
-    return { removido: true };
+    return this.prisma.compra.delete({
+      where: {
+        id,
+      },
+    });
   }
 }

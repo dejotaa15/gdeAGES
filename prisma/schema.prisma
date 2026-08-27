@@ -1,17 +1,39 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
-// Exemplo de model (ajuste conforme seu projeto)
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
   createdAt DateTime @default(now())
+}
+
+model Compra {
+  id        Int          @id @default(autoincrement())
+  data      DateTime     @default(now())
+  itens     ItemCompra[]
+}
+
+model ItemCompra {
+  id         Int      @id @default(autoincrement())
+  quantidade Int
+
+  compraId   Int
+  compra     Compra   @relation(fields: [compraId], references: [id])
+
+  produtoId  Int
+  produto    Produto  @relation(fields: [produtoId], references: [id])
+}
+
+model Produto {
+  id          Int          @id @default(autoincrement())
+  nome        String
+  preco       Float
+
+  itensCompra ItemCompra[]
 }
