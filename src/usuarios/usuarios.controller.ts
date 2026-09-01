@@ -18,17 +18,18 @@ export class UsuariosController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usuariosService.findOne(+id);
-  }
+findOne(@Param('id') id: string) {
+  return this.usuariosService.findOne(id); // sem o "+"
+}
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUsuarioDto: UpdateUsuarioDto) {
-    return this.usuariosService.update(+id, updateUsuarioDto);
-  }
+@Patch(':id')
+update(@Param('id') id: string, @Body() updateUsuarioDto: UpdateUsuarioDto) {
+  return this.usuariosService.update(id, updateUsuarioDto);
+}
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usuariosService.remove(+id);
+@Delete(':id')
+remove(@Param('id') id: string) {
+  return this.usuariosService.remove(id);
+}
   }
 }

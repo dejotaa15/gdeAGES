@@ -10,6 +10,7 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
+  senha     String
   createdAt DateTime @default(now())
 }
 
@@ -36,4 +37,21 @@ model Produto {
   preco       Float
 
   itensCompra ItemCompra[]
+}
+model Estoque {
+  id                Int      @id @default(autoincrement())
+  quantidadeAtual   Int
+  ultimaAtualizacao DateTime
+
+  produtoId         Int      @unique
+  produto           Produto  @relation(fields: [produtoId], references: [id])
+}
+
+model Produto {
+  id          Int          @id @default(autoincrement())
+  nome        String
+  preco       Float
+
+  itensCompra ItemCompra[]
+  estoque     Estoque?
 }
