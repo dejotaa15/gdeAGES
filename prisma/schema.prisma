@@ -31,13 +31,6 @@ model ItemCompra {
   produto    Produto  @relation(fields: [produtoId], references: [id])
 }
 
-model Produto {
-  id          Int          @id @default(autoincrement())
-  nome        String
-  preco       Float
-
-  itensCompra ItemCompra[]
-}
 model Estoque {
   id                Int      @id @default(autoincrement())
   quantidadeAtual   Int

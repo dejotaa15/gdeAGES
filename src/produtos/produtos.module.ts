@@ -1,9 +1,46 @@
-import { Module } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ProdutosService } from './produtos.service';
-import { ProdutosController } from './produtos.controller';
+import { CreateProdutoDto } from './dto/create-produto.dto';
+import { UpdateProdutoDto } from './dto/update-produto.dto';
 
-@Module({
-  controllers: [ProdutosController],
-  providers: [ProdutosService],
-})
-export class ProdutosModule {}
+@Controller('produtos')
+export class ProdutosController {
+  constructor(private readonly produtosService: ProdutosService) {}
+
+  @Post()
+  create(@Body() createProdutoDto: CreateProdutoDto) {
+    return this.produtosService.create(createProdutoDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.produtosService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.produtosService.findOne(Number(id));
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateProdutoDto: UpdateProdutoDto,
+  ) {
+    return this.produtosService.update(Number(id), updateProdutoDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.produtosService.remove(Number(id));
+  }
+}
+```
