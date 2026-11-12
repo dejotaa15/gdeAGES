@@ -6,44 +6,64 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Cargo {
+  ADMIN
+  GERENTE
+  ATENDENTE
+}
+
+enum StatusCompra {
+  CONCLUIDA
+  CANCELADA
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
   senha     String
+  cargo     Cargo    @default(ATENDENTE)
   createdAt DateTime @default(now())
+
+  compras Compra[]
 }
 
 model Compra {
-  id        Int          @id @default(autoincrement())
-  data      DateTime     @default(now())
-  itens     ItemCompra[]
+  id     Int          @id @default(autoincrement())
+  data   DateTime     @default(now())
+  status StatusCompra @default(CONCLUIDA)
+
+  usuarioId String?
+  usuario   User?   @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  itens ItemCompra[]
 }
 
 model ItemCompra {
-  id         Int      @id @default(autoincrement())
-  quantidade Int
+  id             Int     @id @default(autoincrement())
+  quantidade     Int
+  precoUnitario  Decimal @db.Decimal(10, 2)
 
-  compraId   Int
-  compra     Compra   @relation(fields: [compraId], references: [id])
+  compraId Int
+  compra   Compra @relation(fields: [compraId], references: [id], onDelete: Cascade)
 
-  produtoId  Int
-  produto    Produto  @relation(fields: [produtoId], references: [id])
+  produtoId Int
+  produto   Produto @relation(fields: [produtoId], references: [id])
 }
 
 model Estoque {
   id                Int      @id @default(autoincrement())
-  quantidadeAtual   Int
-  ultimaAtualizacao DateTime
+  quantidadeAtual   Int      @default(0)
+  ultimaAtualizacao DateTime @default(now()) @updatedAt
 
-  produtoId         Int      @unique
-  produto           Produto  @relation(fields: [produtoId], references: [id])
+  produtoId Int     @unique
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 }
 
 model Produto {
-  id          Int          @id @default(autoincrement())
-  nome        String
-  preco       Float
+  id    Int     @id @default(autoincrement())
+  nome  String
+  preco Decimal @db.Decimal(10, 2)
 
   itensCompra ItemCompra[]
   estoque     Estoque?
