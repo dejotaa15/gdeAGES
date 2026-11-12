@@ -1,98 +1,140 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Gestão de Compras e Estoque — Panvel
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API da trilha **GDE Back** (Preto no Branco): processa compras, atualiza
+estoque e lista o faturamento da farmácia, com usuários autenticados e
+permissões por cargo.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Stack:** TypeScript · NestJS 11 · Prisma 7 · PostgreSQL (Supabase) · JWT
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Como rodar
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env          # preencha DATABASE_URL, DIRECT_URL, JWT_SECRET e ADMIN_*
+npx prisma migrate dev        # aplica as migrations no banco
+npx prisma db seed            # cria o primeiro ADMIN (usando ADMIN_EMAIL / ADMIN_SENHA)
+npm run start:dev             # http://localhost:3000
 ```
 
-## Compile and run the project
+Depois importe `postman/gdeAGES.postman_collection.json` no Postman e rode
+**Auth → Login (admin)** primeiro: o token é salvo sozinho na variável
+`{{token}}` e usado em todas as outras requisições.
+
+### Testes
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm test             # unitários — rodam sem banco (repositórios em memória)
+npm run test:e2e     # ponta a ponta — ⚠️ APAGA os dados do banco do .env, use um banco de teste
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## Arquitetura (Clean Architecture + DDD)
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+src/
+├── domain/                  ← regras de negócio puras (não conhece Nest nem Prisma)
+│   ├── entities/            Produto, Estoque, Compra, ItemCompra, Usuario
+│   ├── enums/               Cargo, StatusCompra
+│   ├── exceptions/          EstoqueInsuficiente, RecursoNaoEncontrado...
+│   └── money.ts             cálculos em centavos
+├── application/             ← orquestra o domínio
+│   ├── interfaces/          contratos: IProdutoRepository, IHashService, ITokenService...
+│   ├── dtos/                entrada/saída da API (com validação)
+│   ├── mappers/             Entity → DTO de resposta
+│   ├── services/            acesso fino aos repositórios (CRUD)
+│   └── use-cases/           regras que cruzam domínios (RegistrarCompra, Faturamento, Login...)
+├── infrastructure/          ← detalhes técnicos que implementam os contratos
+│   ├── database/            PrismaService + mappers Prisma ↔ Domain
+│   ├── repositories/        PrismaProdutoRepository, PrismaCompraRepository...
+│   └── security/            bcrypt (hash) e JWT (token)
+├── presentation/            ← porta de entrada HTTP
+│   ├── controllers/
+│   ├── guards/              AuthGuard (autenticação) e RolesGuard (autorização)
+│   ├── decorators/          @Public(), @Roles(), @UsuarioAtual()
+│   └── filters/             traduz exceções de domínio em status HTTP
+└── modules/                 ← composição: liga cada interface à sua implementação
 ```
 
-## Deployment
+**Fluxo de uma requisição:** `Controller → UseCase (se houver regra) → Service → Repository`.
+CRUD simples (ex.: listar produtos) vai direto `Controller → Service`, o
+"atalho" mostrado na aula de Clean (Teoria x Prática).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Onde aparece cada princípio SOLID
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Princípio | Onde |
+|---|---|
+| **S**ingle Responsibility | Cada UseCase faz uma coisa (`RegistrarCompra`, `CancelarCompra`, `ConsultarFaturamento`). Mappers só convertem, guards só checam acesso. |
+| **O**pen/Closed | `DomainExceptionFilter`: exceção nova = uma linha na tabela, sem mexer na lógica. |
+| **L**iskov | Qualquer implementação de `IProdutoRepository` (Prisma ou em memória) funciona no `ProdutoService` — os testes provam isso. |
+| **I**nterface Segregation | Um repositório por agregado; `IHashService` e `ITokenService` separados. |
+| **D**ependency Inversion | Services dependem de interfaces (`@Inject(PRODUTO_REPOSITORY)`), nunca do Prisma. |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+---
+
+## Autenticação e autorização
+
+- Login em `POST /auth/login` devolve um **JWT** (expira em `JWT_EXPIRES_IN`).
+- Envie em todas as outras rotas: `Authorization: Bearer <token>`.
+- O `AuthGuard` é **global**: toda rota exige token, exceto as marcadas com `@Public()`.
+  Esquecer um decorator deixa a rota fechada, não aberta.
+- O `RolesGuard` lê o cargo direto do JWT (sem ir ao banco).
+- `401` = não sei quem você é · `403` = sei quem é, mas não pode.
+
+| Ação | ATENDENTE | GERENTE | ADMIN |
+|---|:-:|:-:|:-:|
+| Consultar produtos / estoque / compras | ✅ | ✅ | ✅ |
+| Registrar compra | ✅ | ✅ | ✅ |
+| Cadastrar/alterar produtos e estoque | — | ✅ | ✅ |
+| Cancelar compra · ver faturamento | — | ✅ | ✅ |
+| Apagar compra cancelada | — | — | ✅ |
+| Gerenciar usuários | — | — | ✅ |
+
+---
+
+## Endpoints
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/auth/login` | Login (público) |
+| GET | `/auth/me` | Dados do usuário logado |
+| POST · GET | `/usuarios` | Criar · listar |
+| GET · PATCH · DELETE | `/usuarios/:id` | Buscar · atualizar · remover |
+| POST · GET | `/produtos` | Criar · listar |
+| GET · PUT · PATCH · DELETE | `/produtos/:id` | Buscar · substituir · atualizar · remover |
+| POST · GET | `/estoque` | Criar estoque de um produto · listar |
+| GET · PATCH · DELETE | `/estoque/:id` | Buscar · ajuste de inventário · remover |
+| POST | `/estoque/:id/entrada` | Reposição (`{ "quantidade": 10 }`) |
+| POST | `/estoque/:id/saida` | Perda/vencimento (`{ "quantidade": 2 }`) |
+| POST | `/compras` | Registrar compra — baixa o estoque |
+| GET | `/compras?status=&inicio=&fim=` | Listar com filtros |
+| GET | `/compras/faturamento?inicio=2026-11-01&fim=2026-11-30` | Faturamento do período |
+| GET | `/compras/:id` | Buscar |
+| PATCH | `/compras/:id/cancelar` | Cancelar — devolve ao estoque |
+| DELETE | `/compras/:id` | Apagar (só se já cancelada) |
+
+Exemplo de compra:
+
+```json
+POST /compras
+{ "itens": [ { "produtoId": 1, "quantidade": 2 }, { "produtoId": 3, "quantidade": 1 } ] }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Regras de negócio e decisões
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **O cliente não manda preço.** O backend copia o preço atual do produto para o
+  item da compra (`precoUnitario`). Se o preço mudar depois, o faturamento antigo não muda.
+- **Estoque nunca fica negativo**, nem com vendas simultâneas: a baixa é feita em
+  transação com `UPDATE ... WHERE quantidadeAtual >= quantidade`. Se outra venda
+  levou o estoque antes, nada é gravado.
+- **Compra + baixa de estoque são atômicas** (tudo ou nada).
+- **Cancelar ≠ apagar.** Cancelar devolve os itens ao estoque e tira do faturamento;
+  só compras canceladas podem ser apagadas.
+- **Produto com histórico de compras não pode ser removido.**
+- **Dinheiro em `Decimal` no banco e em centavos nos cálculos** (`0.1 + 0.2` em float dá `0.30000000000000004`).
+- **Senhas com bcrypt**; a resposta da API nunca devolve o hash.
+- **Login com mensagem genérica** ("e-mail ou senha inválidos"), para não revelar quais e-mails existem.
